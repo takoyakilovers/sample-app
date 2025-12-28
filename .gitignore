@@ -1,0 +1,18 @@
+# 仮想環境を除外
+venv/
+
+# 提出物を除外
+提出物/
+
+# src 内の非公開・不要フォルダを除外
+src/__pycache__/
+src/data/
+src/Release-25.11.0-0/
+src/vector_db
+
+# Pythonキャッシュや一時ファイル
+*.pyc
+*.pyo
+*.pyd
+*.swp
+
