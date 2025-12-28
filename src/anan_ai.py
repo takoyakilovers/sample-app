@@ -23,7 +23,7 @@ OPENAI_MODEL_NAME = "openai/gpt-oss-120b"
 print(f"--- INFO: LLMモデルを {API_BASE_URL} の {OPENAI_MODEL_NAME} に設定しました。---")
 
 # Embeddingモデルの準備はそのまま維持します (RAG用)
-embedding_model_name = "intfloat/multilingual-e5-large"
+embedding_model_name = "intfloat/multilingual-e5-small"
 print(f"--- INFO: Embeddingモデル {embedding_model_name} をロード中... ---")
 embed_model = SentenceTransformer(embedding_model_name)
 print("--- INFO: Embeddingモデルのロード完了 ---")
