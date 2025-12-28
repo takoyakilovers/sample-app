@@ -1,0 +1,171 @@
+/* ============================
+   ベースデザイン
+============================ */
+body {
+    background: linear-gradient(135deg, #e2ebf0, #ffffff);
+    font-family: "Helvetica", "Yu Gothic", sans-serif;
+}
+
+/* アプリ全体の中央コンテナ */
+.main-container {
+    background: rgba(255, 255, 255, 0.85);
+    margin: 20px auto;
+    padding: 25px;
+    width: 92%;
+    max-width: 900px;
+    border-radius: 20px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+}
+
+/* ============================
+   ボタン
+============================ */
+button, .stButton>button {
+    background: linear-gradient(135deg, #4b79a1, #283e51) !important;
+    color: white !important;
+    border: none !important;
+    padding: 10px 20px !important;
+    border-radius: 12px !important;
+    font-size: 16px !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    transition: 0.2s ease;
+}
+
+button:hover, .stButton>button:hover {
+    transform: scale(1.03);
+    background: linear-gradient(135deg, #35516a, #1c2d3a) !important;
+}
+
+/* ============================
+   入力欄
+============================ */
+input[type="text"], textarea {
+    border-radius: 10px !important;
+    border: 2px solid #4b79a1 !important;
+    padding: 10px !important;
+    background: rgba(255,255,255,0.8) !important;
+}
+
+/* ============================
+   メッセージカード
+============================ */
+.stSuccess, .stWarning, .stInfo {
+    border-radius: 12px !important;
+    padding: 15px !important;
+    font-size: 16px !important;
+}
+
+.stSuccess {
+    background: rgba(46, 204, 113, 0.2) !important;
+    border-left: 6px solid #2ecc71 !important;
+}
+
+.stInfo {
+    background: rgba(52, 152, 219, 0.2) !important;
+    border-left: 6px solid #3498db !important;
+}
+
+.stWarning {
+    background: rgba(241, 196, 15, 0.2) !important;
+    border-left: 6px solid #f1c40f !important;
+}
+
+/* ============================
+   タイトルの装飾
+============================ */
+h1, h2, h3 {
+    font-weight: 700 !important;
+    color: #283e51 !important;
+    text-align: center;
+}
+
+/* ============================
+   履歴ページの区切り線
+============================ */
+hr, .stMarkdown hr {
+    border: none;
+    border-top: 1px solid #d0d0d0 !important;
+}
+
+/* ============================
+   ボタン行の調整
+============================ */
+div.stButton {
+    display: flex;
+    justify-content: center;
+}
+
+/* ============================
+   タブ風ボタン（ナビゲーション）
+============================ */
+.nav-button > button {
+    width: 100%;
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+
+/* ============================
+   全体のアニメーション
+============================ */
+* {
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+/* ================================
+   履歴カードデザイン
+================================ */
+.history-card {
+    background: rgba(255, 255, 255, 0.9);
+    padding: 18px 22px;
+    margin: 15px 0;
+    border-radius: 15px;
+
+    /* カード感 */
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    border-left: 6px solid #4b79a1;
+
+    /* アニメーション */
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* ホバー時の動き */
+.history-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 22px rgba(0,0,0,0.18);
+}
+
+/* 質問テキスト */
+.history-question {
+    font-size: 17px;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 8px;
+}
+
+/* 回答部分 */
+.history-answer {
+    font-size: 15px;
+    color: #34495e;
+    padding-left: 10px;
+    border-left: 3px solid #4b79a1;
+}
+
+/* 時刻 */
+.history-time {
+    text-align: right;
+    font-size: 12px;
+    opacity: 0.6;
+    margin-top: 8px;
+}
+/* 回答表示 */
+.answer-card{
+    background: #FFFFFF;
+    border-left: 5px solid #4CAF50;
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 10px;
+}
