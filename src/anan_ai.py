@@ -2,6 +2,7 @@ import json
 import re
 import numpy as np
 import torch
+import os
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 from fetch_class_changes import fetch_class_changes
@@ -10,7 +11,7 @@ from openai import OpenAI
 # ターゲットとなるOpenAI互換APIのエンドポイントとキー
 # 提供されたコードを基に設定します。
 API_BASE_URL = "http://hpc04.anan-nct.ac.jp:8000/v1"
-API_KEY = "EMPTY" # APIキーが不要な場合
+API_KEY = os.getenv("API_KEY", "EMPTY") # APIキーが不要な場合
 
 # クライアントをグローバルに初期化
 client = OpenAI(
@@ -23,7 +24,7 @@ OPENAI_MODEL_NAME = "openai/gpt-oss-120b"
 print(f"--- INFO: LLMモデルを {API_BASE_URL} の {OPENAI_MODEL_NAME} に設定しました。---")
 
 # Embeddingモデルの準備はそのまま維持します (RAG用)
-embedding_model_name = "intfloat/multilingual-e5-small"
+embedding_model_name = "intfloat/multilingual-e5-large"
 print(f"--- INFO: Embeddingモデル {embedding_model_name} をロード中... ---")
 embed_model = SentenceTransformer(embedding_model_name)
 print("--- INFO: Embeddingモデルのロード完了 ---")

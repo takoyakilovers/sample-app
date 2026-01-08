@@ -2,16 +2,10 @@ import streamlit as st
 import json
 import sqlite3
 from datetime import datetime
-
-# ===== anan_ai.py から必要なものを import or コピペ =====
-from anan_ai import (
-    ask_question,
-    load_rules_from_file,
-    initialize_vector_db
-)
-
-# 授業変更
+from anan_ai import ask_question, load_rules_from_file, initialize_vector_db
 from fetch_class_changes import fetch_class_changes
+from history import save_history, load_history, clear_history
+
 
 # ================================
 # CSS
