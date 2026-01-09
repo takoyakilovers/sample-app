@@ -1,18 +1,16 @@
 import json
 import re
-import numpy as np
-import torch
 import os
+import numpy as np
 from pathlib import Path
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
-from fetch_class_changes import fetch_class_changes
 from openai import OpenAI
 
 # ================================
-# パス設定（★重要）
+# パス設定（Streamlit Cloud対応）
 # ================================
-BASE_DIR = Path(__file__).parent        # src/
+BASE_DIR = Path(__file__).parent          # src/
 DATA_DIR = BASE_DIR / "data"
 
 # ================================
@@ -26,54 +24,38 @@ client = OpenAI(
     api_key=API_KEY
 )
 
-OPENAI_MODEL_NAME = "openai/gpt-oss-120b"
-print(f"--- INFO: LLMモデルを {API_BASE_URL} の {OPENAI_MODEL_NAME} に設定しました。---")
+MODEL_NAME = "openai/gpt-oss-120b"
+print(f"--- INFO: LLMモデル {MODEL_NAME} を使用 ---")
 
 # ================================
-# Embeddingモデル
+# Embedding モデル
 # ================================
-embedding_model_name = "intfloat/multilingual-e5-large"
-print(f"--- INFO: Embeddingモデル {embedding_model_name} をロード中... ---")
-embed_model = SentenceTransformer(embedding_model_name)
-print("--- INFO: Embeddingモデルのロード完了 ---")
+EMBED_MODEL_NAME = "intfloat/multilingual-e5-large"
+print(f"--- INFO: Embeddingモデル {EMBED_MODEL_NAME} をロード中 ---")
+embed_model = SentenceTransformer(EMBED_MODEL_NAME)
+print("--- INFO: Embeddingモデル ロード完了 ---")
 
 # ================================
 # ファイル読み込み
 # ================================
-def load_rules_from_file(filepath: Path) -> str:
+def load_rules_from_file(path: Path) -> str:
     try:
-        with open(filepath, "r", encoding="utf-8") as f:
-            content = f.read()
-        print(f"--- INFO: {filepath.name} を読み込みました ---")
-        return content
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
     except FileNotFoundError:
-        print(f"⚠ ファイルが見つかりません: {filepath}")
-        return ""
-    except Exception as e:
-        print(f"⚠ 読み込みエラー {filepath}: {e}")
+        print(f"⚠ 規則ファイルが見つかりません: {path}")
         return ""
 
 # ================================
-# 時間割JSON読み込み（★修正済）
+# 時間割JSON読み込み（★重要）
 # ================================
-with open(DATA_DIR / "timetable1.json", "r", encoding="utf-8") as f:
-    timetable_data = json.load(f)
-
-# ================================
-# 時間割テキスト化
-# ================================
-def flatten_timetable(data):
-    lines = []
-    for year, grades in data.items():
-        for grade, classes in grades.items():
-            for class_name, days in classes.items():
-                for day, periods in days.items():
-                    for p in periods:
-                        lines.append(
-                            f"{year}年度 {grade}{class_name} {day}{p['時限']}限:"
-                            f"{p['科目']}（{p['教員']}）@{p['教室']}"
-                        )
-    return "\n".join(lines)
+timetable_path = DATA_DIR / "timetable1.json"
+if timetable_path.exists():
+    with open(timetable_path, "r", encoding="utf-8") as f:
+        TIMETABLE_DATA = json.load(f)
+else:
+    print("⚠ timetable1.json が存在しません")
+    TIMETABLE_DATA = {}
 
 # ================================
 # Vector DB 初期化
@@ -81,42 +63,37 @@ def flatten_timetable(data):
 def initialize_vector_db(text: str):
     if not text:
         return None
-
-    chunks = [t.strip() for t in text.split("\n\n") if t.strip()]
-    embeddings = embed_model.encode(chunks, show_progress_bar=False)
-    return list(zip(chunks, embeddings))
+    chunks = [c.strip() for c in text.split("\n\n") if c.strip()]
+    vectors = embed_model.encode(chunks, show_progress_bar=False)
+    return list(zip(chunks, vectors))
 
 # ================================
 # RAG検索
 # ================================
-def get_rule_context_from_rag(query: str, db: list, k: int = 5):
+def get_rule_context(query: str, db: list, k: int = 5):
     if not db:
-        return None, None
+        return None
 
     q_vec = embed_model.encode(query)
-    vectors = np.array([v for _, v in db])
     texts = [t for t, _ in db]
+    vecs = np.array([v for _, v in db])
 
-    sims = cosine_similarity(q_vec.reshape(1, -1), vectors)[0]
+    sims = cosine_similarity(q_vec.reshape(1, -1), vecs)[0]
     idxs = np.argsort(sims)[-k:][::-1]
 
-    context = "\n---\n".join(texts[i] for i in idxs)
-    question = f"次の校則データをもとに質問に答えてください。\n質問: {query}"
-    return context, question
+    return "\n---\n".join(texts[i] for i in idxs)
 
 # ================================
 # 正規化
 # ================================
 def normalize(text: str) -> str:
-    text = text.lower()
-    text = text.replace("　", " ").replace("ー", "-")
-    return text
+    return text.lower().replace("　", " ").replace("ー", "-")
 
 # ================================
 # クラス・曜日・時限抽出
 # ================================
-def detect_class_from_query(q):
-    q = normalize(q)
+def detect_class(query):
+    q = normalize(query)
     m = re.search(r"1[- ]?([1-4])", q)
     if m:
         return ("1年", f"{m.group(1)}組")
@@ -125,27 +102,27 @@ def detect_class_from_query(q):
         return (f"{m.group(1)}年", m.group(2).upper())
     return None
 
-def detect_day_from_query(q):
+def detect_day(query):
     for d in ["月", "火", "水", "木", "金"]:
-        if d in q:
+        if d in query:
             return d + "曜"
-    return None
+    return "月曜"
 
-def detect_period_from_query(q):
-    m = re.search(r"([1-6])限", q)
+def detect_period(query):
+    m = re.search(r"([1-6])限", query)
     return int(m.group(1)) if m else None
 
 # ================================
 # 時間割取得
 # ================================
-def get_relevant_text(data, year, grade, cls, day, period=None):
+def get_timetable_text(year, grade, cls, day, period=None):
     try:
-        schedule = data[year][grade][cls][day]
-    except KeyError:
+        day_data = TIMETABLE_DATA[year][grade][cls][day]
+    except Exception:
         return None
 
     out = []
-    for p in schedule:
+    for p in day_data:
         if not period or p["時限"] == period:
             out.append(
                 f"{day}{p['時限']}限: {p['科目']}（{p['教員']}）@{p['教室']}"
@@ -157,32 +134,32 @@ def get_relevant_text(data, year, grade, cls, day, period=None):
 # ================================
 def determine_intent(q):
     q = normalize(q)
-    if any(k in q for k in ["何限", "授業", "時間割"]):
+    if any(k in q for k in ["時間割", "授業", "何限"]):
         return "timetable"
-    if any(k in q for k in ["髪", "服装", "身だしなみ"]):
+    if any(k in q for k in ["髪", "身だしなみ", "服装"]):
         return "grooming"
     if any(k in q for k in ["成績", "赤点"]):
         return "grades"
-    if any(k in q for k in ["欠席"]):
+    if "欠席" in q:
         return "abstract"
-    if any(k in q for k in ["自転車"]):
+    if "自転車" in q:
         return "cycle"
-    if any(k in q for k in ["留学"]):
+    if "留学" in q:
         return "abroad"
-    if any(k in q for k in ["進路"]):
+    if "進路" in q:
         return "sinro"
-    if any(k in q for k in ["バイト"]):
+    if "バイト" in q:
         return "part"
-    if any(k in q for k in ["奨学金"]):
+    if "奨学金" in q:
         return "money"
-    if any(k in q for k in ["寮"]):
+    if "寮" in q:
         return "domitory"
-    if any(k in q for k in ["部活"]):
+    if "部活" in q:
         return "clab"
     return "other"
 
 # ================================
-# メインQA関数
+# ★ メイン関数（Import対象）
 # ================================
 def ask_question(
     query,
@@ -201,25 +178,23 @@ def ask_question(
 ):
     intent = determine_intent(query)
 
+    # ---- 時間割 ----
     if intent == "timetable":
-        cls = detect_class_from_query(query)
-        day = detect_day_from_query(query) or "月曜"
-        period = detect_period_from_query(query)
-
+        cls = detect_class(query)
         if not cls:
             return "クラスが特定できませんでした。"
 
         grade, cname = cls
-        context = get_relevant_text(
-            timetable, "2025", grade, cname, day, period
-        )
+        day = detect_day(query)
+        period = detect_period(query)
 
-        if not context:
+        text = get_timetable_text("2025", grade, cname, day, period)
+        if not text:
             return "時間割が見つかりませんでした。"
 
-        prompt = f"以下の時間割をもとに質問に答えてください。\n{context}"
-        max_tokens = 300
+        prompt = f"以下の時間割をもとに質問に答えてください。\n{text}"
 
+    # ---- 校則系（RAG）----
     else:
         db_map = {
             "grooming": grooming,
@@ -234,21 +209,22 @@ def ask_question(
             "domitory": domitory,
             "clab": clab,
         }
-        db = db_map[intent]
-        context, question = get_rule_context_from_rag(query, db)
+
+        context = get_rule_context(query, db_map.get(intent))
         if not context:
             return "該当する情報が見つかりませんでした。"
 
-        prompt = f"{context}\n\n{question}"
-        max_tokens = 500
+        prompt = f"{context}\n\n質問: {query}"
 
+    # ---- LLM呼び出し ----
     try:
         res = client.chat.completions.create(
-            model=OPENAI_MODEL_NAME,
+            model=MODEL_NAME,
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=max_tokens,
+            max_tokens=500,
             temperature=0.7,
         )
         return res.choices[0].message.content.strip()
-    except Exception:
+    except Exception as e:
+        print("LLM ERROR:", e)
         return "AIとの通信中にエラーが発生しました。"
