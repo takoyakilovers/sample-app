@@ -5,17 +5,19 @@ from datetime import datetime
 from anan_ai import ask_question, load_rules_from_file, initialize_vector_db
 from fetch_class_changes import fetch_class_changes
 from history import save_history, load_history, clear_history
+from pathlib import Path
+BASE_DIR = Path(__file__).parent   # src/
 
 
 # ================================
 # CSS
 # ================================
 def load_css():
-    try:
-        with open("style.css", "r", encoding="utf-8") as f:
+    css_path = BASE_DIR / "style.css"
+    if css_path.exists():
+        with open(css_path, "r", encoding="utf-8") as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-    except:
-        pass
+
 
 # set_page_config は必ず一番最初に呼ぶ必要があります
 st.set_page_config(page_title="阿南高専 chatbot", page_icon="⏰")
@@ -81,8 +83,9 @@ init_db()
 # ================================
 @st.cache_resource
 def load_all_data():
-    # ※ ファイルパスなどは環境に合わせてください
-    with open("data/timetable1.json", "r", encoding="utf-8") as f:
+    data_dir = BASE_DIR / "data"
+
+    with open(data_dir / "timetable1.json", "r", encoding="utf-8") as f:
         timetable = json.load(f)
 
     def load_db(path):
@@ -90,18 +93,19 @@ def load_all_data():
 
     return {
         "timetable": timetable,
-        "grooming": load_db("data/style.txt"),
-        "grades": load_db("data/grade.txt"),
-        "abstract": load_db("data/abstract.txt"),
-        "cycle": load_db("data/cycle.txt"),
-        "abroad": load_db("data/abroad.txt"),
-        "sinro": load_db("data/sinro.txt"),
-        "part": load_db("data/part.txt"),
-        "other": load_db("data/other.txt"),
-        "money": load_db("data/money.txt"),
-        "domitory": load_db("data/domitory.txt"),
-        "clab": load_db("data/clab.txt"),
+        "grooming": load_db(data_dir / "style.txt"),
+        "grades": load_db(data_dir / "grade.txt"),
+        "abstract": load_db(data_dir / "abstract.txt"),
+        "cycle": load_db(data_dir / "cycle.txt"),
+        "abroad": load_db(data_dir / "abroad.txt"),
+        "sinro": load_db(data_dir / "sinro.txt"),
+        "part": load_db(data_dir / "part.txt"),
+        "other": load_db(data_dir / "other.txt"),
+        "money": load_db(data_dir / "money.txt"),
+        "domitory": load_db(data_dir / "domitory.txt"),
+        "clab": load_db(data_dir / "clab.txt"),
     }
+
 
 dbs = load_all_data()
 
