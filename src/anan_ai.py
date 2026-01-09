@@ -167,4 +167,4 @@ def ask_question(query: str, db_map: dict):
         print("LLM ERROR:", e)
         return "AIとの通信中にエラーが発生しました。"
 
-__all__ = ["ask_question", "initialize_vector_db"]
+__all__ = ["ask_question", "initialize_vector_db",  "load_rules_from_file"]
