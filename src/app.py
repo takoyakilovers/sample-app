@@ -1,11 +1,7 @@
 import streamlit as st
 from pathlib import Path
 
-from anan_ai import (
-    ask_question,
-    load_rules_from_file,
-    initialize_vector_db,
-)
+from anan_ai import ask_question, initialize_vector_db
 from fetch_class_changes import fetch_class_changes
 from history import save_history, load_history, clear_history
 
@@ -21,50 +17,36 @@ st.set_page_config(
 st.title("🤖 阿南高専 AI アシスタント")
 
 # ================================
-# パス設定（重要）
+# パス設定
 # ================================
 BASE_DIR = Path(__file__).parent
 DATA_DIR = BASE_DIR / "data"
 
 # ================================
-# 校則ロード（キャッシュ）
+# ルールファイル読み込み
+# ================================
+def load_text(path: Path) -> str:
+    if not path.exists():
+        return ""
+    return path.read_text(encoding="utf-8")
+
+# ================================
+# 校則 Vector DB（キャッシュ）
 # ================================
 @st.cache_resource
 def load_all_rule_vectors():
     return {
-        "grooming": initialize_vector_db(
-            load_rules_from_file(DATA_DIR / "grooming.txt")
-        ),
-        "grades": initialize_vector_db(
-            load_rules_from_file(DATA_DIR / "grades.txt")
-        ),
-        "abstract": initialize_vector_db(
-            load_rules_from_file(DATA_DIR / "abstract.txt")
-        ),
-        "cycle": initialize_vector_db(
-            load_rules_from_file(DATA_DIR / "cycle.txt")
-        ),
-        "abroad": initialize_vector_db(
-            load_rules_from_file(DATA_DIR / "abroad.txt")
-        ),
-        "sinro": initialize_vector_db(
-            load_rules_from_file(DATA_DIR / "sinro.txt")
-        ),
-        "part": initialize_vector_db(
-            load_rules_from_file(DATA_DIR / "part.txt")
-        ),
-        "other": initialize_vector_db(
-            load_rules_from_file(DATA_DIR / "other.txt")
-        ),
-        "money": initialize_vector_db(
-            load_rules_from_file(DATA_DIR / "money.txt")
-        ),
-        "domitory": initialize_vector_db(
-            load_rules_from_file(DATA_DIR / "domitory.txt")
-        ),
-        "clab": initialize_vector_db(
-            load_rules_from_file(DATA_DIR / "clab.txt")
-        ),
+        "grooming": initialize_vector_db(load_text(DATA_DIR / "grooming.txt")),
+        "grades": initialize_vector_db(load_text(DATA_DIR / "grades.txt")),
+        "abstract": initialize_vector_db(load_text(DATA_DIR / "abstract.txt")),
+        "cycle": initialize_vector_db(load_text(DATA_DIR / "cycle.txt")),
+        "abroad": initialize_vector_db(load_text(DATA_DIR / "abroad.txt")),
+        "sinro": initialize_vector_db(load_text(DATA_DIR / "sinro.txt")),
+        "part": initialize_vector_db(load_text(DATA_DIR / "part.txt")),
+        "other": initialize_vector_db(load_text(DATA_DIR / "other.txt")),
+        "money": initialize_vector_db(load_text(DATA_DIR / "money.txt")),
+        "domitory": initialize_vector_db(load_text(DATA_DIR / "domitory.txt")),
+        "clab": initialize_vector_db(load_text(DATA_DIR / "clab.txt")),
     }
 
 rule_vectors = load_all_rule_vectors()
@@ -98,18 +80,7 @@ if menu == "AIに質問":
         with st.spinner("AIが考えています..."):
             answer = ask_question(
                 query=user_input,
-                timetable=None,
-                grooming=rule_vectors["grooming"],
-                grades=rule_vectors["grades"],
-                abstract=rule_vectors["abstract"],
-                cycle=rule_vectors["cycle"],
-                abroad=rule_vectors["abroad"],
-                sinro=rule_vectors["sinro"],
-                part=rule_vectors["part"],
-                other=rule_vectors["other"],
-                money=rule_vectors["money"],
-                domitory=rule_vectors["domitory"],
-                clab=rule_vectors["clab"],
+                db_map=rule_vectors
             )
 
         st.markdown("### 🤖 回答")
@@ -118,7 +89,7 @@ if menu == "AIに質問":
         save_history(user_input, answer)
 
 # ================================
-# 授業変更
+# 授業変更情報
 # ================================
 elif menu == "授業変更情報":
     st.subheader("📢 授業変更情報")
