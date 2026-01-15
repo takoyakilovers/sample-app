@@ -1,0 +1,124 @@
+/* ============================
+   全体（ChatGPT風）
+============================ */
+.stApp {
+    background: #f7f7f8;
+    font-family: "Inter", "Helvetica", "Yu Gothic", sans-serif;
+    color: #202123;
+}
+
+/* ============================
+   ヘッダー
+============================ */
+.app-header {
+    text-align: center;
+    padding: 24px 0 12px 0;
+}
+
+.app-header h1 {
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.app-header p {
+    font-size: 14px;
+    color: #6b6f76;
+}
+
+/* ============================
+   ボタン（ChatGPT風）
+============================ */
+.stButton > button {
+    background: #10a37f !important;
+    color: white !important;
+    border-radius: 8px !important;
+    border: none !important;
+    font-weight: 600 !important;
+    padding: 10px 16px !important;
+}
+
+.stButton > button:hover {
+    background: #0e8f6f !important;
+}
+
+/* ============================
+   入力欄
+============================ */
+.stTextInput input,
+.stTextArea textarea {
+    border-radius: 8px !important;
+    border: 1px solid #d9d9e3 !important;
+    padding: 10px !important;
+    background: white !important;
+}
+
+/* ============================
+   ナビゲーションカード
+============================ */
+.nav-card button {
+    background: white !important;
+    border: 1px solid #e5e5ef !important;
+    height: 80px;
+    border-radius: 12px !important;
+    font-size: 16px !important;
+    font-weight: 600 !important;
+}
+
+.nav-card button:hover {
+    border-color: #10a37f !important;
+}
+
+.nav-card.active .stButton > button {
+    background: #10a37f !important;
+    color: white !important;
+}
+
+/* ============================
+   ChatGPT風 回答カード
+============================ */
+.answer-card {
+    background: white;
+    border: 1px solid #e5e5ef;
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 12px;
+}
+
+/* ============================
+   履歴カード
+============================ */
+.history-card {
+    background: white;
+    border: 1px solid #e5e5ef;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+}
+
+.history-question {
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.history-answer {
+    color: #444;
+    font-size: 14px;
+}
+
+.history-time {
+    text-align: right;
+    font-size: 11px;
+    color: #888;
+}
+
+/* ============================
+   情報メッセージ
+============================ */
+.stAlert,
+.stInfo,
+.stSuccess,
+.stWarning {
+    border-radius: 8px !important;
+    font-size: 14px !important;
+}

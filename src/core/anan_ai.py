@@ -8,36 +8,46 @@ from sklearn.metrics.pairwise import cosine_similarity
 from openai import OpenAI
 
 # ================================
-# パス設定
+# パス設定（src基準・公開対応）
 # ================================
-BASE_DIR = Path(__file__).parent
-DATA_DIR = BASE_DIR / "data"
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR.parent / "data"   # ★ 修正点（最重要）
 
 # ================================
-# OpenAI互換API設定
+# OpenAI互換API設定（環境変数必須）
 # ================================
 API_BASE_URL = "http://hpc04.anan-nct.ac.jp:8000/v1"
-API_KEY = os.getenv("API_KEY", "EMPTY")
+API_KEY = os.getenv("API_KEY")
+
+if not API_KEY:
+    raise RuntimeError("API_KEY is not set. Please set it as an environment variable.")
 
 client = OpenAI(
     base_url=API_BASE_URL,
-    api_key=API_KEY
+    api_key=API_KEY,
 )
 
 MODEL_NAME = "openai/gpt-oss-120b"
 
 # ================================
-# Embedding（軽量・必須）
+# Embedding（遅延ロード）
 # ================================
 EMBED_MODEL_NAME = "intfloat/multilingual-e5-small"
-embed_model = SentenceTransformer(EMBED_MODEL_NAME)
+_embed_model = None
+
+def get_embed_model():
+    global _embed_model
+    if _embed_model is None:
+        _embed_model = SentenceTransformer(EMBED_MODEL_NAME)
+    return _embed_model
 
 # ================================
 # 時間割JSON
 # ================================
-TIMETABLE_DATA = {}
-timetable_path = DATA_DIR / "timetable1.json"
+TIMETABLE_DATA: dict = {}
+TIMETABLE_YEAR = "2025"
 
+timetable_path = DATA_DIR / "timetable1.json"
 if timetable_path.exists():
     with open(timetable_path, "r", encoding="utf-8") as f:
         TIMETABLE_DATA = json.load(f)
@@ -45,18 +55,22 @@ if timetable_path.exists():
 # ================================
 # Vector DB
 # ================================
-def initialize_vector_db(text: str):
+def initialize_vector_db(text: str) -> list:
     if not text:
         return []
+
     chunks = [c.strip() for c in text.split("\n\n") if c.strip()]
-    vectors = embed_model.encode(chunks, show_progress_bar=False)
+    model = get_embed_model()
+    vectors = model.encode(chunks, show_progress_bar=False)
     return list(zip(chunks, vectors))
 
-def get_rule_context(query: str, db: list, k: int = 5):
+def get_rule_context(query: str, db: list, k: int = 5) -> str | None:
     if not db:
         return None
 
-    q_vec = embed_model.encode(query)
+    model = get_embed_model()
+    q_vec = model.encode(query)
+
     vecs = np.array([v for _, v in db])
     texts = [t for t, _ in db]
 
@@ -68,31 +82,35 @@ def get_rule_context(query: str, db: list, k: int = 5):
 # ================================
 # 判定系
 # ================================
-def normalize(text: str):
+def normalize(text: str) -> str:
     return text.lower().replace("　", " ").replace("ー", "-")
 
-def detect_class(q):
+def detect_class(q: str):
     q = normalize(q)
+
     m = re.search(r"1[- ]?([1-4])", q)
     if m:
-        return ("1年", f"{m.group(1)}組")
+        return "1年", f"{m.group(1)}組"
+
     m = re.search(r"([2-5])([meicz])", q)
     if m:
-        return (f"{m.group(1)}年", m.group(2).upper())
+        return f"{m.group(1)}年", m.group(2).upper()
+
     return None
 
-def detect_day(q):
+def detect_day(q: str) -> str:
     for d in ["月", "火", "水", "木", "金"]:
         if d in q:
-            return d + "曜"
+            return f"{d}曜"
     return "月曜"
 
-def detect_period(q):
+def detect_period(q: str):
     m = re.search(r"([1-6])限", q)
     return int(m.group(1)) if m else None
 
-def determine_intent(q):
+def determine_intent(q: str) -> str:
     q = normalize(q)
+
     if "時間割" in q or "授業" in q:
         return "timetable"
     if "髪" in q or "服装" in q:
@@ -115,26 +133,36 @@ def determine_intent(q):
         return "domitory"
     if "部活" in q:
         return "clab"
+
     return "other"
 
 # ================================
-# ★ メイン関数
+# ファイル読み込み
 # ================================
-def ask_question(query: str, db_map: dict):
+def load_rules_from_file(path: str | Path) -> str:
+    p = Path(path)
+    if not p.exists():
+        return ""
+    return p.read_text(encoding="utf-8")
+
+# ================================
+# メインAPI
+# ================================
+def ask_question(query: str, db_map: dict) -> str:
     intent = determine_intent(query)
 
     # ---- 時間割 ----
     if intent == "timetable":
         cls = detect_class(query)
         if not cls:
-            return "クラスが特定できませんでした。"
+            return "クラスが特定できませんでした。例：1-2 月曜 3限"
 
         grade, cname = cls
         day = detect_day(query)
         period = detect_period(query)
 
         try:
-            day_data = TIMETABLE_DATA["2025"][grade][cname][day]
+            day_data = TIMETABLE_DATA[TIMETABLE_YEAR][grade][cname][day]
         except Exception:
             return "時間割が見つかりませんでした。"
 
@@ -144,16 +172,27 @@ def ask_question(query: str, db_map: dict):
             if not period or p["時限"] == period
         ]
 
-        prompt = "\n".join(lines)
+        if not lines:
+            return "該当する授業がありません。"
 
-    # ---- 校則系 ----
+        prompt = (
+            "以下は阿南高専の時間割です。\n"
+            "事実のみを使って簡潔に答えてください。\n\n"
+            + "\n".join(lines)
+        )
+
+    # ---- 校則・規則 ----
     else:
         db = db_map.get(intent)
         context = get_rule_context(query, db)
         if not context:
             return "該当する情報が見つかりませんでした。"
 
-        prompt = f"{context}\n\n質問: {query}"
+        prompt = (
+            "以下は阿南高専の公式規則の抜粋です。\n"
+            "記載内容のみを根拠に回答してください。\n\n"
+            f"{context}\n\n質問: {query}"
+        )
 
     try:
         res = client.chat.completions.create(
@@ -163,8 +202,13 @@ def ask_question(query: str, db_map: dict):
             temperature=0.7,
         )
         return res.choices[0].message.content.strip()
+
     except Exception as e:
         print("LLM ERROR:", e)
         return "AIとの通信中にエラーが発生しました。"
 
-__all__ = ["ask_question", "initialize_vector_db",  "load_rules_from_file"]
+__all__ = [
+    "ask_question",
+    "initialize_vector_db",
+    "load_rules_from_file",
+]
