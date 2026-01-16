@@ -6,37 +6,32 @@ import re
 import time
 import logging
 from datetime import datetime
-from pathlib import Path
 
 # ===== 外部AIロジック =====
-from core.anan_ai import (
+from anan_ai import (
     ask_question,
     load_rules_from_file,
     initialize_vector_db
 )
-from core.fetch_class_changes import fetch_class_changes
 
-# ================================
-# パス設定（src 基準）
-# ================================
-BASE_DIR = Path(__file__).resolve().parent
-DATA_DIR = BASE_DIR / "data"
-ASSETS_DIR = BASE_DIR / "assets"
+# 授業変更
+from fetch_class_changes import fetch_class_changes
 
 # ================================
 # 基本設定
 # ================================
-st.set_page_config(page_title="阿南高専 chatbot", page_icon="⏰")
+st.set_page_config(page_title="阿南高専 chatbot",page_icon="⏰")
 st.markdown("""
 <h1>阿南高専 学生サポートAI</h1>
 <p>学校生活の疑問をすぐ解決</p>
 """, unsafe_allow_html=True)
 
 # ================================
-# ログ設定（Cloud対応）
+# ログ設定
 # ================================
 logging.basicConfig(
-    level=logging.WARNING,
+    filename="app.log",
+    level = logging.WARNING,
     format="%(asctime)s %(levelname)s %(message)s"
 )
 
@@ -45,20 +40,19 @@ logging.basicConfig(
 # ================================
 def load_css():
     try:
-        with open(ASSETS_DIR / "style.css", encoding="utf-8") as f:
+        with open("style.css", "r", encoding="utf-8") as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
     except Exception as e:
         logging.warning(f"CSS load failed: {e}")
 
 load_css()
 
-# ================================
-# SQLite（履歴）
-# ================================
-DB_PATH = BASE_DIR / "history.db"
 
+# ================================
+# SQLite
+# ================================
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect("history.db")
     c = conn.cursor()
     c.execute("""
         CREATE TABLE IF NOT EXISTS history (
@@ -72,7 +66,7 @@ def init_db():
     conn.close()
 
 def add_history(q, a):
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect("history.db")
     c = conn.cursor()
     c.execute(
         "INSERT INTO history (question, answer, timestamp) VALUES (?, ?, ?)",
@@ -82,17 +76,17 @@ def add_history(q, a):
     conn.close()
 
 def load_history():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect("history.db")
     c = conn.cursor()
-    c.execute(
-        "SELECT id, question, answer, timestamp FROM history ORDER BY id DESC"
-    )
+    # 削除用に id も取得するように変更
+    c.execute("SELECT id, question, answer, timestamp FROM history ORDER BY id DESC")
     rows = c.fetchall()
     conn.close()
     return rows
 
+# ★ 追加: 指定IDの履歴を削除する関数
 def delete_history_item(item_id):
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect("history.db")
     c = conn.cursor()
     c.execute("DELETE FROM history WHERE id = ?", (item_id,))
     conn.commit()
@@ -105,21 +99,21 @@ init_db()
 # ================================
 MAX_LEN = 300
 
-def validate_input(text: str):
+def validate_input(text):
     if not text or not text.strip():
         return False, "入力が空です"
     if len(text) > MAX_LEN:
         return False, "300文字以内で入力してください"
-    if re.search(r"[<>]", text):
+    if re.search(r"[<>]",text):
         return False, "使用できない文字が含まれています"
     return True, ""
 
 # ================================
-# DoS対策（連打防止）
+# DoS対策 (連打防止)
 # ================================
 def rate_limit(sec=5):
     now = time.time()
-    last = st.session_state.get("last_request_time", 0)
+    last = st.session_state.get("last_request_time",0)
     if now - last < sec:
         st.warning("少し待ってから再度実行してください")
         return False
@@ -127,46 +121,33 @@ def rate_limit(sec=5):
     return True
 
 # ================================
-# データ読み込み（RAG）
+# データ読み込み
 # ================================
 @st.cache_resource
 def load_all_data():
-    with open(DATA_DIR / "timetable1.json", encoding="utf-8") as f:
+    # ※ ファイルパスなどは環境に合わせてください
+    with open("data/timetable1.json", "r", encoding="utf-8") as f:
         timetable = json.load(f)
 
-    def load_db(path: Path):
+    def load_db(path):
         return initialize_vector_db(load_rules_from_file(path))
 
     return {
         "timetable": timetable,
-        "grooming": load_db(DATA_DIR / "style.txt"),
-        "grades": load_db(DATA_DIR / "grade.txt"),
-        "abstract": load_db(DATA_DIR / "abstract.txt"),
-        "cycle": load_db(DATA_DIR / "cycle.txt"),
-        "abroad": load_db(DATA_DIR / "abroad.txt"),
-        "sinro": load_db(DATA_DIR / "sinro.txt"),
-        "part": load_db(DATA_DIR / "part.txt"),
-        "other": load_db(DATA_DIR / "other.txt"),
-        "money": load_db(DATA_DIR / "money.txt"),
-        "domitory": load_db(DATA_DIR / "domitory.txt"),
-        "clab": load_db(DATA_DIR / "clab.txt"),
+        "grooming": load_db("data/style.txt"),
+        "grades": load_db("data/grade.txt"),
+        "abstract": load_db("data/abstract.txt"),
+        "cycle": load_db("data/cycle.txt"),
+        "abroad": load_db("data/abroad.txt"),
+        "sinro": load_db("data/sinro.txt"),
+        "part": load_db("data/part.txt"),
+        "other": load_db("data/other.txt"),
+        "money": load_db("data/money.txt"),
+        "domitory": load_db("data/domitory.txt"),
+        "clab": load_db("data/clab.txt"),
     }
 
 dbs = load_all_data()
-
-# intent → VectorDB の対応表
-DB_MAP = {
-    "grooming": dbs["grooming"],
-    "grades": dbs["grades"],
-    "abstract": dbs["abstract"],
-    "cycle": dbs["cycle"],
-    "abroad": dbs["abroad"],
-    "sinro": dbs["sinro"],
-    "part": dbs["part"],
-    "money": dbs["money"],
-    "domitory": dbs["domitory"],
-    "clab": dbs["clab"],
-}
 
 # ================================
 # 管理者認証
@@ -176,92 +157,190 @@ if "is_admin" not in st.session_state:
 
 with st.sidebar:
     st.markdown("### 管理者")
-    pin = st.text_input("管理者PIN", type="password")
-    admin_pin = st.secrets.get("ADMIN_PIN")
-    if admin_pin and pin == admin_pin:
+    pin = st.text_input("管理者PIN",type="password")
+    if pin and pin == st.secrets.get("ADMIN_PIN"):
         st.session_state.is_admin = True
         st.success("管理者モード")
 
 # ================================
 # ページ管理
 # ================================
-if "page" not in st.session_state:
-    st.session_state.page = "home"
-
 def nav_button(label, target):
-    if st.button(label, key=f"nav_{target}"):
+    active = st.session_state.page == target
+
+    st.markdown(
+        f'<div class="nav-card {"active" if active else ""}">',
+        unsafe_allow_html=True
+    )
+
+    clicked = st.button(label,key=f"nav_{target}")
+    st.markdown("</div>", unsafe_allow_html=True)
+    if clicked and not active:
         st.session_state.page = target
         st.rerun()
 
-st.markdown("## 🔽 機能を選択してください")
-c1, c2, c3, c4 = st.columns(4)
-with c1: nav_button("🏠 ホーム", "home")
-with c2: nav_button("💬 チャット", "chat")
-with c3: nav_button("🔄 授業変更", "change")
-with c4: nav_button("📜 履歴", "history")
+if "page" not in st.session_state:
+    st.session_state.page = "home"
 
+st.markdown("## 🔽 機能を選択してください")
+
+col1, col2, col3, col4 = st.columns(4)
+
+with col1:
+    nav_button("🏠 ホーム", "home")
+with col2:
+    nav_button("💬 チャット", "chat")
+with col3:
+    nav_button("🔄 授業変更", "change")
+with col4:
+    nav_button("📜 履歴", "history")
 page = st.session_state.page
 
 # ================================
-# ホーム
+# ページ：ホーム
 # ================================
 if page == "home":
-    st.info("学内向け試験運用版です")
+    st.markdown("""
+    ### ようこそ！
+
+    このアプリは **阿南高専の学生向けサポートAI** です。  
+    学校生活でよくある疑問を、AIがすぐに解決します。
+    """)
+
+    st.markdown("### 🔍 できること")
+    st.markdown("""
+    - 💬 **チャット**  
+      校則・成績・髪型・進路・奨学金などの質問
+
+    - 🔄 **授業変更**  
+      クラスごとの最新の授業変更情報を確認
+
+    - 📜 **履歴**  
+      過去の質問と回答を一覧で確認
+    """)
+
+    st.markdown("### 🚀 使い方")
+    st.markdown("""
+    1. 上のメニューから機能を選択  
+    2. 質問やクラスを入力  
+    3. AIの回答を確認
+    """)
+
+    st.info("※ 本アプリは学内向けの試験運用版です。")
 
 # ================================
-# チャット
+# ページ：質問
 # ================================
 elif page == "chat":
-    q = st.text_input("質問を入力してください")
+    st.write("例: 1年2組 火曜3限 / 髪型の校則は？ / 赤点の基準は？")
+    q = st.text_input(
+        "",
+        placeholder="質問してみましょう",
+        label_visibility="collapsed"
+    )
 
     if st.button("送信"):
         if not rate_limit():
             st.stop()
 
-        ok, msg = validate_input(q)
+        ok,msg = validate_input(q)
         if not ok:
             st.error(msg)
             st.stop()
 
-        with st.spinner("考えています..."):
-            ans = ask_question(q, DB_MAP)
+        try:
+            with st.spinner("考えています..."):
+                ans = ask_question(
+                    q,
+                    dbs["timetable"],
+                    dbs["grooming"],
+                    dbs["grades"],
+                    dbs["abstract"],
+                    dbs["cycle"],
+                    dbs["abroad"],
+                    dbs["sinro"],
+                    dbs["part"],
+                    dbs["other"],
+                    dbs["money"],
+                    dbs["domitory"],
+                    dbs["clab"],
+                )
+            
+            safe_q = html.escape(q)
+            safe_a = html.escape(ans)
 
-        st.success(ans)
-        add_history(html.escape(q), html.escape(ans))
+            if len(safe_a) > 120:
+                with st.expander("回答を表示"):
+                    st.write(safe_a)
+            else:
+                st.success(ans)
+            add_history(safe_q,safe_a)
+        
+        except Exception as e:
+            logging.warning(e)
+            st.error("内部エラーが発生しました")
 
 # ================================
-# 授業変更
+# ページ：授業変更
 # ================================
 elif page == "change":
-    c = st.text_input("クラス（例：3I）")
+    st.header("授業変更")
+    st.write("例：3I 4I などクラスのみで")
+    c = st.text_input(
+        "",
+        placeholder="質問してみましょう",
+        label_visibility="collapsed"
+    )
     if st.button("取得"):
         result = fetch_class_changes(c if c else None)
         st.info(result)
         add_history(c or "全体", html.escape(result))
 
 # ================================
-# 履歴
+# ページ：履歴
 # ================================
 elif page == "history":
+    st.header("質問履歴")
     if st.session_state.is_admin:
-        if st.button("🗑️ 履歴をすべて削除"):
-            conn = sqlite3.connect(DB_PATH)
-            conn.execute("DELETE FROM history")
+        if st.button("🗑️ 履歴をすべて削除する"):
+            conn = sqlite3.connect("history.db")
+            c = conn.cursor()
+            c.execute("DELETE FROM history")
             conn.commit()
             conn.close()
             st.rerun()
 
-    history = load_history()
-    if not history:
-        st.info("履歴はありません")
+    history_data = load_history()
 
-    for h_id, q, a, t in history:
+    if not history_data:
+        st.info("履歴はありません。")
+    
+    for row in history_data:
+        # load_historyのSQL変更に伴い、rowは (id, question, answer, timestamp) になっています
+        h_id, q, a, t = row
         t_jp = datetime.fromisoformat(t).strftime("%Y/%m/%d %H:%M")
-        st.markdown(f"**Q:** {q}")
-        st.markdown(f"**A:** {a}")
-        st.caption(t_jp)
-
-        if st.session_state.is_admin:
-            if st.button("削除", key=f"del_{h_id}"):
-                delete_history_item(h_id)
-                st.rerun()
+        
+        # コンテナを使ってグループ化
+        with st.container():
+            # 削除ボタンを右端に配置するためのカラム分割
+            col_text, col_btn = st.columns([0.85, 0.15])
+            
+            with col_text:
+                st.markdown(
+                    f"""
+                    <div class="answer-card">
+                        <div style="background-color: #f0f2f6; padding: 15px; border-radius: 10px; margin-bottom: 10px;">
+                            <div style="font-weight: bold; color: #31333F;">📌 {q}</div>
+                            <div style="margin-top: 5px; color: #555;">{a}</div>
+                            <div style="font-size: 0.8em; color: #888; margin-top: 10px; text-align: right;">{t_jp}</div>
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+            
+            with col_btn:
+                if st.session_state.is_admin:
+                    if st.button("削除", key=f"del_{h_id}"):
+                        delete_history_item(h_id)
+                        st.rerun()

@@ -1,7 +1,7 @@
 /* ============================
    全体（ChatGPT風）
 ============================ */
-.stApp {
+body {
     background: #f7f7f8;
     font-family: "Inter", "Helvetica", "Yu Gothic", sans-serif;
     color: #202123;
@@ -45,8 +45,7 @@
 /* ============================
    入力欄
 ============================ */
-.stTextInput input,
-.stTextArea textarea {
+input[type="text"], textarea {
     border-radius: 8px !important;
     border: 1px solid #d9d9e3 !important;
     padding: 10px !important;
@@ -63,6 +62,7 @@
     border-radius: 12px !important;
     font-size: 16px !important;
     font-weight: 600 !important;
+    box-shadow: none;
 }
 
 .nav-card button:hover {
@@ -115,10 +115,7 @@
 /* ============================
    情報メッセージ
 ============================ */
-.stAlert,
-.stInfo,
-.stSuccess,
-.stWarning {
+.stInfo, .stSuccess, .stWarning {
     border-radius: 8px !important;
     font-size: 14px !important;
 }
