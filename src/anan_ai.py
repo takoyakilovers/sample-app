@@ -6,7 +6,10 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 from fetch_class_changes import fetch_class_changes
 from openai import OpenAI
+import os
 
+BASE_DIR = os.path.dirname(__file__)  # anan_ai.py のディレクトリ
+DATA_DIR = os.path.join(BASE_DIR, "data")
 # ターゲットとなるOpenAI互換APIのエンドポイントとキー
 # 提供されたコードを基に設定します。
 API_BASE_URL = "http://hpc04.anan-nct.ac.jp:8000/v1"
@@ -29,27 +32,21 @@ embed_model = SentenceTransformer(embedding_model_name)
 print("--- INFO: Embeddingモデルのロード完了 ---")
 
 # ==== ファイル読み込み関数 (拡張) ====
-def load_rules_from_file(filepath: str) -> str:
-    """
-    指定されたパスから校則テキストを読み込む。
-    読み込みエラーが発生した場合は、空文字列を返す。
-    """
+def load_rules_from_file(filename: str) -> str:
+    filepath = os.path.join(DATA_DIR, filename)
     try:
-        # 実際の実行環境に合わせてファイルパスとエンコーディングを調整してください
         with open(filepath, "r", encoding="utf-8") as f:
             rules_content = f.read()
         print(f"--- INFO: ファイル '{filepath}' を読み込みました。---")
         return rules_content
     except FileNotFoundError:
-        print(f"エラー: 校則ファイル '{filepath}' が見つかりません。このDBは無効化されます。")
+        print(f"警告: ファイル '{filepath}' が見つかりません。DBは無効化されます。")
         return ""
-    except Exception as e:
-        print(f"エラー: ファイル読み込み中にエラーが発生しました: {e}")
-        return ""
+
 
 # ==== JSONを読み込む ====
 # 実際の実行環境に合わせてファイルパスを調整してください
-with open("data/timetable1.json", "r", encoding="utf-8") as f:
+with open(os.path.join(DATA_DIR, "timetable1.json"), "r", encoding="utf-8") as f:
     timetable_data = json.load(f)
 
 # ==== JSONをテキスト化（RAG的前処理）====
@@ -433,17 +430,17 @@ if __name__ == "__main__":
 
     # -----------------------------------------------------------
     # RAGデータベースの初期化（全3ファイル対応）
-    GROOMING_RULES_FILE = "data/style.txt" # 身だしなみ
-    GRADES_RULES_FILE = "data/grade.txt"   # 成績表
-    ABSTRACT_RULES_FILE = "data/abstract.txt"  # 特別欠席
-    CYCLE_RULES_FILE = "data/cycle.txt"   #自転車
-    ABROAD_RULES_FILE = "data/abroad.txt" # 留学・海外研修
-    SINRO_RULES_FILE = "data/sinro.txt"   # 進路
-    PART_RULES_FILE = "data/part.txt"     # アルバイト/課外活動
-    OTHER_RULES_FILE = "data/other.txt"   # その他
-    MONEY_RULES_FILE = "data/money.txt"   # 奨学金/学費
-    DOMITORY_RULES_FILE = "data/domitory.txt" # 寮生活
-    CLAB_RULES_FILE = "data/clab.txt"     # 部活動
+    GROOMING_RULES_FILE = os.path.join(DATA_DIR, "style.txt") # 身だしなみ
+    GRADES_RULES_FILE = os.path.join(DATA_DIR, "grade.txt")   # 成績表
+    ABSTRACT_RULES_FILE = os.path.join(DATA_DIR, "abstract.txt")  # 特別欠席
+    CYCLE_RULES_FILE = os.path.join(DATA_DIR, "cycle.txt")   #自転車
+    ABROAD_RULES_FILE = os.path.join(DATA_DIR, "abroad.txt") # 留学・海外研修
+    SINRO_RULES_FILE = os.path.join(DATA_DIR, "sinro.txt")   # 進路
+    PART_RULES_FILE = os.path.join(DATA_DIR, "part.txt")     # アルバイト/課外活動
+    OTHER_RULES_FILE = os.path.join(DATA_DIR, "other.txt")   # その他
+    MONEY_RULES_FILE = os.path.join(DATA_DIR, "money.txt")   # 奨学金/学費
+    DOMITORY_RULES_FILE = os.path.join(DATA_DIR, "domitory.txt") # 寮生活
+    CLAB_RULES_FILE = os.path.join(DATA_DIR, "clab.txt")     # 部活動
 
     # 1. 身だしなみDBの作成
     grooming_text = load_rules_from_file(GROOMING_RULES_FILE)
