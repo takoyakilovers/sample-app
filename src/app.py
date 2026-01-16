@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 import json
 import sqlite3
@@ -6,6 +7,9 @@ import re
 import time
 import logging
 from datetime import datetime
+
+BASE_DIR = os.path.dirname(__file__)  # app.py があるディレクトリ
+DATA_DIR = os.path.join(BASE_DIR, "data")
 
 # ===== 外部AIロジック =====
 from anan_ai import (
@@ -125,26 +129,33 @@ def rate_limit(sec=5):
 # ================================
 @st.cache_resource
 def load_all_data():
-    # ※ ファイルパスなどは環境に合わせてください
-    with open("data/timetable1.json", "r", encoding="utf-8") as f:
-        timetable = json.load(f)
+    # JSONを絶対パスで読み込む
+    timetable_path = os.path.join(DATA_DIR, "timetable1.json")
+    try:
+        with open(timetable_path, "r", encoding="utf-8") as f:
+            timetable = json.load(f)
+    except FileNotFoundError:
+        st.error(f"{timetable_path} が見つかりません。")
+        return None
 
-    def load_db(path):
+    # DBロード用関数
+    def load_db(filename):
+        path = os.path.join(DATA_DIR, filename)
         return initialize_vector_db(load_rules_from_file(path))
 
     return {
         "timetable": timetable,
-        "grooming": load_db("data/style.txt"),
-        "grades": load_db("data/grade.txt"),
-        "abstract": load_db("data/abstract.txt"),
-        "cycle": load_db("data/cycle.txt"),
-        "abroad": load_db("data/abroad.txt"),
-        "sinro": load_db("data/sinro.txt"),
-        "part": load_db("data/part.txt"),
-        "other": load_db("data/other.txt"),
-        "money": load_db("data/money.txt"),
-        "domitory": load_db("data/domitory.txt"),
-        "clab": load_db("data/clab.txt"),
+        "grooming": load_db("style.txt"),
+        "grades": load_db("grade.txt"),
+        "abstract": load_db("abstract.txt"),
+        "cycle": load_db("cycle.txt"),
+        "abroad": load_db("abroad.txt"),
+        "sinro": load_db("sinro.txt"),
+        "part": load_db("part.txt"),
+        "other": load_db("other.txt"),
+        "money": load_db("money.txt"),
+        "domitory": load_db("domitory.txt"),
+        "clab": load_db("clab.txt"),
     }
 
 dbs = load_all_data()
